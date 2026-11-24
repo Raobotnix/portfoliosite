@@ -10,7 +10,20 @@ export async function onRequest(context) {
     const userAgent = context.request.headers.get("user-agent") || "unknown";
     const referrer = context.request.headers.get("referer") || "unknown";
     const language = context.request.headers.get("accept-language") || "unknown";
-
+    let continent = "unknown";
+    let city = "unknown";
+    try {
+      const response = await fetch(
+        `https://ip.hackclub.com/${encodeURIComponent(ip)}`
+      );
+      if (response.ok) {
+        const geolocation = await response.json();
+        continent = geolocation.continent_name || "unknown";
+        city = geolocation.city_name || "unknown";
+      }
+    } catch (error) {
+      console.error("Geolocation failed:", error);
+    }
     // parse basic device info from userAgent
     let deviceType = "unknown";
     if (/mobile/i.test(userAgent)) deviceType = "mobile";
@@ -19,7 +32,7 @@ export async function onRequest(context) {
 
     await context.env.DB.prepare(
       `INSERT INTO logs 
-      (ip, page, consent, time, userAgent, referrer, language, deviceType)
+      (ip, continent, city, page, consent, time, userAgent, referrer, language, deviceType)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .bind(
@@ -30,7 +43,9 @@ export async function onRequest(context) {
       userAgent,
       referrer,
       language,
-      deviceType
+      deviceType,
+      continent,
+      city
     )
     .run();
 
